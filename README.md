@@ -1,3 +1,3 @@
-# healthAI
+# ExArTiSeD: Extensible Architecture for Time-Series Data
 
-Android app for applying machine learning in the health and wellness domain.
+An extensible modular framework for time-series data processing on Android
