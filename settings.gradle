@@ -1,5 +1,7 @@
 pluginManagement {
     repositories {
+        google()
+        mavenCentral()
         maven { url "https://chaquo.com/maven" }
     }
 }
@@ -15,3 +17,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "BHP"
 include ':app'
+include ':interfaces'
+include ':fitbit'

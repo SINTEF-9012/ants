@@ -1,10 +1,6 @@
 package no.sintef.giot.bhp.spi;
 
-import android.util.Log;
-import com.google.gson.Gson;
-import com.opencsv.exceptions.CsvDataTypeMismatchException;
-import com.opencsv.exceptions.CsvRequiredFieldEmptyException;
-import java.io.IOException;
+import no.sintef.giot.bhp.interfaces.LoadDataService;
 import no.sintef.giot.bhp.sqlite.DBHelper;
 
 public class JsonLoadDataImpl extends LoadDataService {

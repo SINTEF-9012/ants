@@ -1,4 +1,4 @@
-package no.sintef.giot.bhp.spi;
+package no.sintef.giot.bhp.interfaces;
 
 /**
  * An abstract class for creating different inference implementations

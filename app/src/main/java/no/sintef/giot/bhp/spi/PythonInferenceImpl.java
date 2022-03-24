@@ -1,5 +1,7 @@
 package no.sintef.giot.bhp.spi;
 
+import no.sintef.giot.bhp.interfaces.InferenceService;
+
 public class PythonInferenceImpl extends InferenceService {
 
   @Override
