@@ -1,4 +1,4 @@
-package no.sintef.giot.bhp.sqlite;
+package no.sintef.giot.bhp.fitbit.sqlite;
 
 import android.content.ContentValues;
 import android.content.Context;

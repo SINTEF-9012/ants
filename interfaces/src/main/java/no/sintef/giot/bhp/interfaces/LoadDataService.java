@@ -6,9 +6,16 @@ package no.sintef.giot.bhp.interfaces;
 public abstract class LoadDataService {
 
   /**
-   * Get data as a string
+   * Get data as a CSV string
    *
-   * @return data
+   * @return CSV data
    */
-  public abstract String getData();
+  public abstract String getDataAsCSV();
+
+  /**
+   * Get data as a JSON string
+   *
+   * @return JSON data
+   */
+  public abstract String getDataAsJson();
 }

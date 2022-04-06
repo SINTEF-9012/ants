@@ -15,7 +15,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "BHP"
+rootProject.name = "ants"
 include ':app'
 include ':interfaces'
 include ':fitbit'

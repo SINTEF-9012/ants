@@ -1,4 +1,4 @@
-package no.sintef.giot.bhp.fitbitdataloader;
+package no.sintef.giot.bhp.fitbit;
 
 import android.content.Context;
 

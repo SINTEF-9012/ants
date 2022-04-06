@@ -5,7 +5,5 @@ package no.sintef.giot.bhp.interfaces;
  */
 public abstract class InferenceService {
 
-  public abstract String infer();
-
-  public abstract String getType();
+  public abstract String infer(String inputData);
 }

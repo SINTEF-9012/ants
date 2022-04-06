@@ -13,6 +13,10 @@ import com.chaquo.python.PyException;
 import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
 import com.chaquo.python.android.AndroidPlatform;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.opencsv.CSVReader;
 import com.opencsv.bean.CsvToBeanBuilder;
 
@@ -25,9 +29,15 @@ import java.nio.channels.FileChannel;
 import java.util.List;
 import java.util.ServiceLoader;
 
+import no.sintef.giot.bhp.interfaces.InferenceService;
 import no.sintef.giot.bhp.interfaces.LoadDataService;
-import no.sintef.giot.bhp.sqlite.DBHelper;
-import no.sintef.giot.bhp.sqlite.HeartRateVariability;
+import no.sintef.giot.bhp.fitbit.sqlite.DBHelper;
+import no.sintef.giot.bhp.fitbit.sqlite.HeartRateVariability;
+import okhttp3.Call;
+import okhttp3.Callback;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.Response;
 
 import org.tensorflow.lite.DataType;
 import org.tensorflow.lite.Interpreter;
@@ -37,20 +47,80 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String TAG = "MainActivity";
 
-    public static final String EXTRA_MESSAGE = "no.sintef.giot.bhp.BHP";
+    static final String EXTRA_MESSAGE = "BHP";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        loadSQLite();
-        ServiceLoader<LoadDataService> loader = ServiceLoader.load(LoadDataService.class);
-        Log.i(TAG, "Found service implementations: ");
-        for (LoadDataService ld : loader) {
-            Log.i(TAG, ld.getClass().toString());
-            Log.i(TAG, ld.getData());
+        //Start python
+        if (!Python.isStarted()) {
+            Python.start(new AndroidPlatform(this));
         }
+
+        //Loads csv data into SQLite DB on start-up
+        loadSQLite();
+
+        //search for load data implementations
+        ServiceLoader<LoadDataService> ldLoader = ServiceLoader.load(LoadDataService.class);
+        Log.i(TAG, "Found LoadDataService implementations: ");
+        for (LoadDataService ld : ldLoader) {
+            Log.i(TAG, ld.getClass().toString());
+            //Log.i(TAG, ld.getDataAsCSV());
+            //Log.i(TAG, ld.getDataAsJson());
+        }
+
+        //search for inference implementations
+        ServiceLoader<InferenceService> inLoader = ServiceLoader.load(InferenceService.class);
+        Log.i(TAG, "Found InferenceService implementations: ");
+        for (InferenceService in : inLoader) {
+            Log.i(TAG, in.getClass().toString());
+        }
+    }
+
+    /**
+     * Method for testing the FitBit Web Api
+     *
+     * @param view current view
+     */
+    public void testFitbitApi(View view) throws IOException {
+
+        // should be a singleton
+        OkHttpClient client = new OkHttpClient();
+
+        Request request = new Request.Builder()
+                .header("Authorization", "Bearer " + BuildConfig.fitbit_access_token)
+                //.url("https://api.fitbit.com/1/user/-/profile.json")
+                //.url("https://api.fitbit.com/1/user/-/activities.json")
+                .url("https://api.fitbit.com/1/user/-/activities/steps/date/2022-01-01/2022-04-01/1min.json")
+                .build();
+
+        Log.i(TAG, request.toString());
+
+        // Get a handler that can be used to post to the main thread
+        client.newCall(request).enqueue(new Callback() {
+
+            @Override
+            public void onFailure(Call call, IOException e) {
+                Log.e(TAG, e.getMessage());
+            }
+
+            @Override
+            public void onResponse(Call call, final Response response) throws IOException {
+                if (!response.isSuccessful()) {
+                    throw new IOException("Unexpected code " + response);
+                } else {
+                    JsonObject json = JsonParser.parseString(response.body().string()).getAsJsonObject();
+                    Gson gson = new GsonBuilder().setPrettyPrinting().create();
+                    String prettyJson = gson.toJson(json);
+                    Log.i(TAG, "Result " + prettyJson);
+                }
+            }
+        });
+
+        // Outputs the results:
+        Log.i(TAG, "My 'token' is: " + BuildConfig.fitbit_access_token);
     }
 
     /**
@@ -102,10 +172,7 @@ public class MainActivity extends AppCompatActivity {
      * @param view current view
      */
     public void runInference(View view) {
-        //Start python
-        if (!Python.isStarted()) {
-            Python.start(new AndroidPlatform(this));
-        }
+
         Python py = Python.getInstance();
 
         // Obtain the system's input stream (available from Chaquopy)

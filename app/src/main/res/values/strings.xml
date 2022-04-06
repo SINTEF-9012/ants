@@ -5,4 +5,5 @@
     <string name="button_train_model">TRAIN</string>
     <string name="button_load_csv">LOAD CSV DATA</string>
     <string name="button_infer">RUN</string>
+    <string name="button_fitbit">TEST FITBIT API</string>
 </resources>
