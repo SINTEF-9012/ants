@@ -8,6 +8,11 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import java.io.IOException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
 
 import no.sintef.giot.bhp.interfaces.LoadDataService;
 
@@ -21,13 +26,26 @@ public class WebApiDataLoader extends LoadDataService {
 
     private static final String TAG = "WebApiDataLoader";
 
-    private static final String FITBIT_URL_SLEEP = "https://api.fitbit.com/1.2/user/-/sleep/date/2022-01-01/2022-04-01.json";
+    private static final String FITBIT_URL_SLEEP = "https://api.fitbit.com/1.2/user/-/sleep/date/%s/%s.json";
 
     private static final String FITBIT_URL_PROFILE = "https://api.fitbit.com/1/user/-/profile.json";
 
-    private static final String FITBIT_URL_ACTIVITY_INTRADAY_STEPS = "https://api.fitbit.com/1/user/-/activities/steps/date/2022-01-01/2022-04-01/1min.json";
+    private static final String FITBIT_URL_ACTIVITY_INTRADAY_STEPS = "https://api.fitbit.com/1/user/-/activities/steps/date/%s/%s/1min.json";
 
-    private final Gson gson = new Gson();
+    private static final String FITBIT_URL_ACTIVITY_INTRADAY_HEARTRATE = "https://api.fitbit.com/1/user/-/activities/heart/date/%s/%s/1min.json";
+
+    private static Gson gson;
+
+    private static DateFormat df;
+
+    private static OkHttpClient okClient;
+
+    public WebApiDataLoader() {
+        super();
+        df = new SimpleDateFormat("yyyy-MM-dd");
+        gson = new Gson();
+        okClient = new OkHttpClient();
+    }
 
     /**
      * Get data from FitBit Web API
@@ -36,19 +54,73 @@ public class WebApiDataLoader extends LoadDataService {
      */
     public String getData() {
 
-        // should be a singleton
-        OkHttpClient client = new OkHttpClient();
+        return getProfileData();
+        //return getSleepData(-10);
+        //return getHeartRateData(-10);
+        //return getStepsData(-10);
+    }
 
+    /**
+     * Gets user profile data from FitBit
+     *
+     * @return user profile data as json
+     */
+    private String getProfileData() {
+        return callFitbitApiRequest(FITBIT_URL_PROFILE);
+    }
+
+    /**
+     * Gets sleep data from FitBit
+     *
+     * @param numDays offset
+     * @return sleep data as json
+     */
+    private String getSleepData(int numDays) {
+        //be careful about the order of date!
+        return callFitbitApiRequest(String.format(FITBIT_URL_SLEEP, getDatePast(numDays), getDateToday()));
+    }
+
+
+
+    /**
+     * Gets heart data from FitBit
+     *
+     * @param numDays offset
+     * @return heart rate data as json
+     */
+    private String getHeartRateData(int numDays) {
+        return callFitbitApiRequest(String.format(FITBIT_URL_ACTIVITY_INTRADAY_HEARTRATE, getDateToday(), getDatePast(numDays)));
+    }
+
+    /**
+     * Gets steps data from FitBit
+     *
+     * @param numDays offset
+     * @return steps data as json
+     */
+    private String getStepsData(int numDays) {
+        return callFitbitApiRequest(String.format(FITBIT_URL_ACTIVITY_INTRADAY_STEPS, getDateToday(), getDatePast(numDays)));
+    }
+
+    /**
+     * Generic method to call the FitBit API
+     *
+     * @param url specific API endpoint
+     * @return rquest results as a json string
+     */
+    private String callFitbitApiRequest(String url) {
+
+        Log.i(TAG, "FitBitAPI entrypoint: " + url);
         Request request = new Request.Builder()
                 .header("Authorization", "Bearer " + BuildConfig.fitbit_access_token)
-                .url(FITBIT_URL_ACTIVITY_INTRADAY_STEPS)
+                .url(url)
                 .build();
 
         //this is an ugly workaround to write the http response into the result
         final String[] result = {""};
 
         // Get a handler that can be used to post to the main thread
-        client.newCall(request).enqueue(new Callback() {
+        okClient.newCall(request).enqueue(new Callback() {
 
             @Override
             public void onFailure(Call call, IOException e) {
@@ -58,15 +130,11 @@ public class WebApiDataLoader extends LoadDataService {
             @Override
             public void onResponse(Call call, final Response response) throws IOException {
                 if (!response.isSuccessful()) {
-                    throw new IOException("Unexpected code " + response);
+                    throw new IOException("Unexpected http response code " + response);
                 } else {
-                    //JsonObject json = JsonParser.parseString(response.body().string()).getAsJsonObject();
-                    //Gson gson = new GsonBuilder().setPrettyPrinting().create();
-                    //String prettyJson = gson.toJson(json);
-                    //Log.i(TAG, "Result " + prettyJson);
-                    //result[0] = prettyJson;
-
                     result[0] = response.body().string();
+                    Log.i(TAG, "Response body: " + getPrettyJson(result[0]));
+                    response.close();
                 }
             }
         });
@@ -93,5 +161,46 @@ public class WebApiDataLoader extends LoadDataService {
     public String getDataAsJson() {
         //no transformation  needed since FitBit data is already in Json
         return getData();
+    }
+
+    /**
+     * Returns today's date as string YYYY-MM-DD
+     *
+     * @return today's date
+     */
+    private String getDateToday() {
+
+        //DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+        return df.format(new Date());
+    }
+
+    /**
+     * Returns a date in the past as string YYYY-MM-DD
+     *
+     * @param numDays an offset in days to calculate the date in the past (should be a negative integer)
+     * @return date in the past
+     */
+    private String getDatePast(int numDays) {
+
+        Calendar cal = GregorianCalendar.getInstance();
+        cal.add(Calendar.DAY_OF_YEAR, numDays);
+        Date pastDate = cal.getTime();
+
+        return df.format(pastDate);
+    }
+
+    /**
+     * Beuatify Json
+     *
+     * @param json input json string
+     * @return pretty json string
+     */
+    private String getPrettyJson(String inputJson) {
+
+        JsonObject json = JsonParser.parseString(inputJson).getAsJsonObject();
+        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        String prettyJson = gson.toJson(json);
+        //Log.i(TAG, "Result " + prettyJson);
+        return prettyJson;
     }
 }

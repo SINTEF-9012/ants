@@ -67,6 +67,7 @@ public class MainActivity extends AppCompatActivity {
         Log.i(TAG, "Found LoadDataService implementations: ");
         for (LoadDataService ld : ldLoader) {
             Log.i(TAG, ld.getClass().toString());
+            ld.getDataAsJson();
             //Log.i(TAG, ld.getDataAsCSV());
             //Log.i(TAG, ld.getDataAsJson());
         }
