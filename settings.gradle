@@ -17,5 +17,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "ants"
 include ':app'
-include ':interfaces'
+include ':core'
 include ':fitbit'

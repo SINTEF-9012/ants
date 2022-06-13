@@ -24,7 +24,7 @@ android {
             abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
         }
         python {
-            buildPython "C:/Users/rustemd/AppData/Local/Microsoft/WindowsApps/python.exe"
+            //buildPython "C:/Users/rustemd/AppData/Local/Microsoft/WindowsApps/python.exe"
             buildPython "python3"
 
             pip {
@@ -32,7 +32,10 @@ android {
                 install "tensorflow"
                 install "matplotlib"
                 install "pandas"
+                install "joblib"
+                install "sklearn"
                 //install "requests==2.24.0"
+                //install "kafka-python"
 
                 // An sdist or wheel filename, relative to the project directory:
                 //install "MyPackage-1.2.3-py2.py3-none-any.whl"
@@ -64,7 +67,7 @@ dependencies {
 
     implementation 'androidx.appcompat:appcompat:1.4.1'
     implementation 'com.google.android.material:material:1.5.0'
-    implementation project(path: ':interfaces')
+    implementation project(path: ':core')
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'

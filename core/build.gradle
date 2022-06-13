@@ -1,6 +1,5 @@
 plugins {
-    id 'com.android.application'
-    //id 'com.chaquo.data'
+    id 'com.android.library'
 }
 
 //Properties properties = new Properties()
@@ -12,42 +11,16 @@ android {
     compileSdk 31
 
     defaultConfig {
-        applicationId "no.sintef.giot.bhp"
         minSdk 21
         targetSdk 31
         versionCode 1
         versionName "1.0"
-
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         //ndk {
         //    abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
         //}
-
+        consumerProguardFiles "consumer-rules.pro"
         //buildConfigField 'String', "fitbit_access_token", "\"${properties.getProperty("fitbit_access_token")}\""
-
-        /* python {
-            buildPython "C:/Users/rustemd/AppData/Local/Microsoft/WindowsApps/data.exe"
-            buildPython "python3"
-
-            pip {
-                // A requirement specifier, with or without a version number:
-                install "tensorflow"
-                install "matplotlib"
-                install "pandas"
-                //install "requests==2.24.0"
-
-                // An sdist or wheel filename, relative to the project directory:
-                //install "MyPackage-1.2.3-py2.py3-none-any.whl"
-
-                // A directory containing a setup.py, relative to the project
-                // directory (must contain at least one slash):
-                //install "./MyPackage"
-
-                // "-r"` followed by a requirements filename, relative to the
-                // project directory:
-                //install "-r", "requirements.txt"
-            }
-        }*/
     }
 
     buildTypes {
@@ -56,6 +29,7 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -69,14 +43,10 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.0.4'
     implementation 'org.jetbrains:annotations:15.0'
     implementation 'org.jetbrains:annotations:15.0'
-    implementation project(path: ':core')
-    implementation project(path: ':fitbit')
     testImplementation 'junit:junit:4.+'
     androidTestImplementation 'androidx.test.ext:junit:1.1.2'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.3.0'
-    //implementation 'org.tensorflow:tensorflow-lite:2.6.0'
-    //implementation 'org.tensorflow:tensorflow-lite-support:0.1.0'
-    //implementation 'com.opencsv:opencsv:5.5.2'
-    //implementation 'com.google.code.gson:gson:2.9.0'
-    //implementation 'com.squareup.okhttp3:okhttp:4.9.3'
+    implementation 'com.opencsv:opencsv:5.5.2'
+    implementation 'com.google.code.gson:gson:2.9.0'
+    implementation 'com.squareup.okhttp3:okhttp:4.9.3'
 }

@@ -5,4 +5,8 @@
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <application android:name="no.sintef.giot.bhp.fitbit.FitbitApplication">
+
+    </application>
+
 </manifest>

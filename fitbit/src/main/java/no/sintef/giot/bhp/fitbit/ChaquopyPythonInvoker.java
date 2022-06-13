@@ -5,13 +5,20 @@ import android.util.Log;
 import com.chaquo.python.PyException;
 import com.chaquo.python.PyObject;
 import com.chaquo.python.Python;
-//import com.chaquo.python.android.AndroidPlatform;
+import com.chaquo.python.android.AndroidPlatform;
 
-import no.sintef.giot.bhp.interfaces.InferenceService;
+import no.sintef.giot.bhp.interfaces.ProcessDataService;
 
-public class PythonInferenceImpl extends InferenceService {
+public class ChaquopyPythonInvoker extends ProcessDataService {
 
-  private static final String TAG = "PythonInferenceImpl";
+  private static final String TAG = "ChaquopyPythonInvoker";
+
+  public ChaquopyPythonInvoker() {
+    //Start python
+    if (!Python.isStarted()) {
+      Python.start(new AndroidPlatform(FitbitApplication.getAppContext()));
+    }
+  }
 
   @Override
   public String infer(String inputData) {
@@ -33,7 +40,6 @@ public class PythonInferenceImpl extends InferenceService {
 
     // Execute the Python code
     try {
-      // TODO: read the contents either from CSV file or from the database and pass them to Python as a CSV string argument
       //String csvData = DBHelper.getInstance(this).getAllEntriesAsCsv();
       module.callAttr("infer_from_string", inputData);
 

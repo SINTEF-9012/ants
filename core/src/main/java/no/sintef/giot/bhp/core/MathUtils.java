@@ -1,4 +1,4 @@
-package no.sintef.giot.bhp.utils;
+package no.sintef.giot.bhp.core;
 
 public class MathUtils {
     /**

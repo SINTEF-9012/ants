@@ -13,13 +13,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApp">
         <activity
-            android:name="no.sintef.giot.bhp.ClassifyStress"
-            android:exported="true" />
-        <activity
-            android:name="no.sintef.giot.bhp.DisplayMessageActivity"
-            android:exported="true"
-            android:parentActivityName="no.sintef.giot.bhp.MainActivity" />
-        <activity
             android:name="no.sintef.giot.bhp.MainActivity"
             android:exported="true">
             <intent-filter>

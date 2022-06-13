@@ -1,9 +1,4 @@
 <resources>
     <string name="app_name">BlueHealthPass</string>
-    <string name="edit_message">Enter a message</string>
-    <string name="button_send">Send</string>
-    <string name="button_train_model">TRAIN</string>
-    <string name="button_load_csv">LOAD CSV DATA</string>
-    <string name="button_infer">RUN</string>
-    <string name="button_fitbit">TEST FITBIT API</string>
+    <string name="button_infer">TEST</string>
 </resources>
