@@ -29,7 +29,7 @@ public class ChaquopyPythonInvoker extends ProcessDataService {
     PyObject sys = py.getModule("sys");
     PyObject io = py.getModule("io");
     // Obtain the right python module
-    PyObject module = py.getModule("inference");
+    PyObject module = py.getModule("infer_fas");
 
     // Redirect the system's output stream to the Python interpreter
     PyObject textOutputStream = io.callAttr("StringIO");
@@ -41,7 +41,7 @@ public class ChaquopyPythonInvoker extends ProcessDataService {
     // Execute the Python code
     try {
       //String csvData = DBHelper.getInstance(this).getAllEntriesAsCsv();
-      module.callAttr("infer_from_string", inputData);
+      module.callAttr("preprocess_and_infer", inputData, "input_scaler.z", "model.h5", "input_columns.csv", "params.json");
 
       //module.callAttrThrows("main", "hrv.csv");
       interpreterOutput = textOutputStream.callAttr("getvalue").toString();
