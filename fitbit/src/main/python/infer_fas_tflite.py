@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""Receiving FitBit data in JSON format and inferring Fatigue Assessment Score
+"""Receiving FitBit data in JSON format and infering Fatigue Assessment Score
 using machine learning model.
 
 Created:
@@ -12,8 +12,10 @@ from datetime import datetime
 
 import joblib
 import pandas as pd
-from tensorflow.keras import models
+import numpy as np
+import tflite_runtime.interpreter as tflite
 from os.path import dirname, join
+
 
 class FitBitDataFrame:
     """Producing a coherent data frame based on Fitbit data.
@@ -214,15 +216,12 @@ class FitBitDataFrame:
 
         return self.df
 
-
-def infer(input_data, model_filepath, deep_learning=True):
+def infer_tflite(input_data, model_filepath):
     """Run inference on input data.
 
     Args:
         input_data (array): Input data/predictors.
         model_filepath: Filepath to model.
-        deep_learning (bool): Whether the model is a deep learning model or
-            not.
 
     Returns:
         prediction (array): Predicted values from model.
@@ -230,16 +229,23 @@ def infer(input_data, model_filepath, deep_learning=True):
     """
 
     # Load model
-    if deep_learning:
-        model = models.load_model(model_filepath, compile = False)
-    else:
-        model = joblib.load(model_filepath)
+    interpreter = tflite.Interpreter(model_filepath)
+
+    interpreter.allocate_tensors()
+
+    input_tensor = np.array(input_data, dtype=np.float32)
+
+    input_index = interpreter.get_input_details()[0]["index"]
+    output_index = interpreter.get_output_details()[0]["index"]
+
+    interpreter.set_tensor(input_index, input_tensor)
+
 
     # Infer
-    prediction = model.predict(input_data)
+    interpreter.invoke()
+    prediction = interpreter.get_tensor(output_index)
 
     return prediction
-
 
 def preprocess_and_infer(
     input_json_str,
@@ -306,7 +312,8 @@ def preprocess_and_infer(
         fitbit_data.combine_data_and_profile(user_data["user"])
 
         # Select variables/columns to use
-        input_columns = pd.read_csv(input_columns_filepath, index_col=0, header=None
+        input_columns = pd.read_csv(
+            input_columns_filepath, index_col=0, header=None
         ).index.tolist()
         input_data = fitbit_data.df[input_columns]
 
@@ -328,7 +335,14 @@ def preprocess_and_infer(
         # Select the latest data n data points, where n=window_size
         input_data = input_data[-window_size:, :].reshape(1, -1)
 
-        y = infer(input_data, model_filepath, deep_learning=deep_learning)
+        # import time
+        # start = time.perf_counter()
+        y = infer_tflite(input_data, model_filepath)
+        # end = time.perf_counter()
+        # print(f"{user_id}: TFLite inference in {end - start:0.4f} seconds")
+        # print(y[-1])
+        # print("====================")
+
 
         # The latest FAS value is returned for each user.
         output.append({"userid": user_id, "fas": str(y[-1])})

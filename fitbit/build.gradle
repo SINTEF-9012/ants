@@ -24,16 +24,18 @@ android {
             abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
         }
         python {
-            //buildPython "C:/Users/rustemd/AppData/Local/Microsoft/WindowsApps/python.exe"
+            //buildPython "C:/Users/rustemd/AppData/Local/Microsoft/WindowsApps/python3.8.exe"
             buildPython "python3"
 
             pip {
                 // A requirement specifier, with or without a version number:
-                install "tensorflow"
+                //install "tensorflow"
+                install "tflite-runtime"
                 install "matplotlib"
                 install "pandas"
                 install "joblib"
-                install "sklearn"
+                install "scikit-learn"
+                //install "sklearn"
                 //install "requests==2.24.0"
                 //install "kafka-python"
 
