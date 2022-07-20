@@ -1,4 +1,5 @@
 {
     "window_size": 5,
+    "max_data_staleness": 10,
     "deep_learning": true
 }

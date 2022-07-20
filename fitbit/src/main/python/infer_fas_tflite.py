@@ -8,7 +8,7 @@ Created:
 
 """
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import joblib
 import pandas as pd
@@ -16,6 +16,8 @@ import numpy as np
 import tflite_runtime.interpreter as tflite
 from os.path import dirname, join
 
+import logging
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', datefmt='%d-%b-%y %H:%M:%S')
 
 class FitBitDataFrame:
     """Producing a coherent data frame based on Fitbit data.
@@ -24,6 +26,7 @@ class FitBitDataFrame:
     wearable by one person.
 
     Attributes:
+        user_id (str): ID of user. Used for error messages.
         dfs (list of DataFrames): List containing pandas DataFrames for each of
             the different categories of data.
         df (DataFrame): The resulting data frame after joining together the data
@@ -36,7 +39,9 @@ class FitBitDataFrame:
 
     """
 
-    def __init__(self):
+    def __init__(self, user_id):
+
+        self.user_id = user_id
 
         self.dfs = []
         self.df = None
@@ -73,7 +78,11 @@ class FitBitDataFrame:
         # df = pd.read_json(data_dict)
         df = pd.DataFrame.from_dict(data_dict)
 
-        df["dateOfSleep"] = pd.to_datetime(df["dateOfSleep"])
+        try:
+            df["dateOfSleep"] = pd.to_datetime(df["dateOfSleep"])
+        except KeyError as e:
+            logging.warning(f"User ID: {self.user_id}. Error retreving data: sleep. Error: " + repr(e))
+
         df.set_index("dateOfSleep", inplace=True)
 
         # Delete rows which does not contain main sleep
@@ -100,7 +109,11 @@ class FitBitDataFrame:
         df = pd.DataFrame.from_dict(data_dict)
 
         # Change dateTime column to datetime type
-        df["dateTime"] = pd.to_datetime(df["dateTime"])
+        try:
+            df["dateTime"] = pd.to_datetime(df["dateTime"])
+        except KeyError as e:
+            logging.warning(f"User ID: {self.user_id}. Error retreving data: {name}. Error: " + repr(e))
+
 
         value_columns = [c for c in df.columns if c.startswith("value")]
 
@@ -122,7 +135,8 @@ class FitBitDataFrame:
         for column in new_value_columns:
             # Sum or mean values per day
             if sum_values:
-                df_resampled[column] = df.resample("D", on="dateTime")[column].sum()
+                # df_resampled[column] = df.resample("D", on="dateTime")[column].sum()
+                df_resampled[column] = df.resample("D", on="dateTime")[column].first()
             else:
                 df_resampled[column + "_max"] = df.resample("D", on="dateTime")[
                     column
@@ -157,15 +171,31 @@ class FitBitDataFrame:
         for obj in data_dict:
 
             date = obj["activities-heart"][0]["dateTime"]
-            resting_heart_rate = obj["activities-heart"][0]["value"]["restingHeartRate"]
 
             intraday = obj["activities-heart-intraday"]["dataset"]
             intraday = pd.DataFrame.from_dict(intraday)
+
+            # Check if data is present in intraday. If not, continue to next
+            # day.
+            if (
+                    "time" not in intraday.keys() and
+                    "value" not in intraday.keys()
+                ):
+                continue
+
             intraday.set_index("time", inplace=True)
 
             heart_rate_bpm_max = intraday["value"].max()
             heart_rate_bpm_min = intraday["value"].min()
             heart_rate_bpm_mean = intraday["value"].mean()
+
+            # resting_heart_rate is sometimes missing from the API. If it is,
+            # use the heart_rate_bpm_min instead.
+            try:
+                resting_heart_rate = obj["activities-heart"][0]["value"]["restingHeartRate"]
+            except KeyError as e:
+                logging.warning(f"User ID: {self.user_id}. Resting heart rate is missing, replacing with the minimum value. Error: " + repr(e));
+                resting_heart_rate = heart_rate_bpm_min
 
             df = pd.concat(
                 [
@@ -212,8 +242,6 @@ class FitBitDataFrame:
         self.df["height"] = self.height
         self.df["bmi"] = self.bmi
 
-        self.df = self.df.fillna(0)
-
         return self.df
 
 def infer_tflite(input_data, model_filepath):
@@ -247,6 +275,53 @@ def infer_tflite(input_data, model_filepath):
 
     return prediction
 
+def format_output(user_id, fas, timestamp):
+    """Return the output in expected format."""
+
+    return {"userid": user_id, "fas": fas, "timestamp": timestamp}
+
+
+def read_user_data(user_data):
+    """Extract all the required fields from input data.
+
+    Args:
+        user_data: Input data.
+
+    Returns:
+        fitbit_data: Only contains relevant fields.
+
+    """
+
+    fitbit_data = FitBitDataFrame(user_id=user_data["userid"])
+
+    fitbit_data.read_timeseries("calories", user_data["activities-calories"])
+    fitbit_data.read_timeseries("distance", user_data["activities-distance"])
+    fitbit_data.read_timeseries("steps", user_data["activities-steps"], sum_values=True)
+    fitbit_data.read_timeseries(
+        "lightly_active_minutes",
+        user_data["activities-minutesLightlyActive"],
+        sum_values=True,
+        )
+    fitbit_data.read_timeseries(
+        "moderately_active_minutes",
+        user_data["activities-minutesFairlyActive"],
+        sum_values=True,
+        )
+    fitbit_data.read_timeseries(
+        "very_active_minutes",
+        user_data["activities-minutesVeryActive"],
+        sum_values=True,
+        )
+    fitbit_data.read_timeseries(
+        "sedentary_minutes",
+        user_data["activities-minutesSedentary"],
+        sum_values=True,
+        )
+    fitbit_data.read_heart_rate(user_data["heartrate"])
+    fitbit_data.read_sleep(user_data["sleep"])
+
+    return fitbit_data
+
 def preprocess_and_infer(
     input_json_str,
     scaler_filepath,
@@ -276,38 +351,25 @@ def preprocess_and_infer(
     input_columns_filepath = join(dirname(__file__), input_columns_filepath)
     params_filepath = join(dirname(__file__), params_filepath)
 
+    # Read configuration parameters
+    with open(params_filepath, "r") as infile:
+        params = json.load(infile)
+        window_size = params["window_size"]
+        max_data_staleness = params["max_data_staleness"]
+
     output = []
 
     for user_data in input_json:
         user_id = user_data["userid"]
 
-        fitbit_data = FitBitDataFrame()
+        try:
+            fitbit_data = read_user_data(user_data)
+        except KeyError as e:
+            logging.warning(f"User ID: {user_id}. Skipping current user due to missing values. Error: " + repr(e))
+            output.append(format_output(user_id=user_id, fas="nan", timestamp="nan"))
 
-        fitbit_data.read_timeseries("calories", user_data["activities-calories"])
-        fitbit_data.read_timeseries("distance", user_data["activities-distance"])
-        fitbit_data.read_timeseries("steps", user_data["activities-steps"], sum_values=True)
-        fitbit_data.read_timeseries(
-            "lightly_active_minutes",
-            user_data["activities-minutesLightlyActive"],
-            sum_values=True,
-        )
-        fitbit_data.read_timeseries(
-            "moderately_active_minutes",
-            user_data["activities-minutesFairlyActive"],
-            sum_values=True,
-        )
-        fitbit_data.read_timeseries(
-            "very_active_minutes",
-            user_data["activities-minutesVeryActive"],
-            sum_values=True,
-        )
-        fitbit_data.read_timeseries(
-            "sedentary_minutes",
-            user_data["activities-minutesSedentary"],
-            sum_values=True,
-        )
-        fitbit_data.read_heart_rate(user_data["heartrate"])
-        fitbit_data.read_sleep(user_data["sleep"])
+            # Continue to next user
+            continue
 
         fitbit_data.combine_data_and_profile(user_data["user"])
 
@@ -316,6 +378,32 @@ def preprocess_and_infer(
             input_columns_filepath, index_col=0, header=None
         ).index.tolist()
         input_data = fitbit_data.df[input_columns]
+
+        # Drop NaN values
+        input_data = input_data.dropna()
+
+        # Sort input data on date
+        input_data = input_data.sort_index()
+
+        # Select the last n data points, where n=window_size
+        input_data = input_data.iloc[-window_size:,:]
+
+        # If input data has less than required number of days (window size) in
+        # the latest 10 days (calculated from the latest date in the input
+        # data), return NaN.
+        dates_in_input_data = input_data.index.to_pydatetime()
+        latest_date = max(dates_in_input_data)
+        date_threshold = latest_date - timedelta(days = max_data_staleness)
+
+        if (
+                len(input_data) < window_size or
+                dates_in_input_data.any() < date_threshold
+            ):
+            logging.warning(f"User ID: {user_id}. Skipping user due to not enough available days of data.")
+            output.append(format_output(user_id=user_id, fas="nan", timestamp="nan"))
+
+            # Continue to next user
+            continue
 
         # Convert to NumPy array
         input_data = input_data.to_numpy()
@@ -326,26 +414,17 @@ def preprocess_and_infer(
         # Scale input data
         input_data = scaler.transform(input_data)
 
-        # Read configuration parameters
-        with open(params_filepath, "r") as infile:
-            params = json.load(infile)
-            window_size = params["window_size"]
-            deep_learning = params["deep_learning"]
-
         # Select the latest data n data points, where n=window_size
         input_data = input_data[-window_size:, :].reshape(1, -1)
 
-        # import time
-        # start = time.perf_counter()
         y = infer_tflite(input_data, model_filepath)
-        # end = time.perf_counter()
-        # print(f"{user_id}: TFLite inference in {end - start:0.4f} seconds")
-        # print(y[-1])
-        # print("====================")
-
 
         # The latest FAS value is returned for each user.
-        output.append({"userid": user_id, "fas": str(y[-1])})
+        output.append(format_output(
+            user_id,
+            fas=str(y[-1]),
+            timestamp=str(latest_date)
+        ))
 
     output_json = json.dumps(output)
 
